@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mis Citas - Puente Blanco</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+  <!-- Barra superior -->
+  <header class="bg-blue-900 text-white py-4 px-6 flex justify-between items-center">
+    <h1 class="text-xl font-bold">Clinica y Veterinaria Puente Blanco</h1>
+    <span>Mis Citas</span>
+  </header>
+
+  <div class="flex">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-gray-800 text-white min-h-screen p-6 space-y-6">
+      <nav class="flex flex-col gap-4">
+        <a th:href="@{/dashboard}" class="hover:text-blue-300">Dashboard</a>
+        <a th:href="@{/book-appointment}" class="hover:text-blue-300">Agendar Cita</a>
+        <a th:href="@{/appointments}" class="font-semibold text-white">Ver Citas</a>
+        <a th:href="@{/cancel-appointment}" class="hover:text-blue-300">Cancelar Cita</a>
+        <a th:href="@{/veterinarians}" class="hover:text-blue-300">Veterinarios</a>
+        <a th:href="@{/vaccination}" class="hover:text-blue-300">Vacunación</a>
+        <a href="#" onclick="logout()" class="hover:text-red-400">Cerrar Sesión</a>
+      </nav>
+    </aside>
+
+    <!-- Contenido principal -->
+    <main class="flex-1 p-10">
+      <h2 class="text-3xl font-bold mb-6">Historial de Citas</h2>
+
+      <div class="mb-4">
+          <input type="text" id="searchInput" placeholder="Buscar por nombre de mascota, servicio o veterinario..."
+          class="w-full md:w-1/2 px-4 py-2 border rounded shadow" />
+      </div>
+
+      <div class="overflow-x-auto bg-white rounded shadow-md">
+        <table class="min-w-full text-sm text-left border">
+          <thead class="bg-gray-200 text-gray-700 uppercase text-xs">
+            <tr>
+              <th class="px-6 py-3">Fecha y hora</th>
+              <th class="px-6 py-3">Mascota</th>
+              <th class="px-6 py-3">Servicio</th>
+              <th class="px-6 py-3">Veterinario</th>
+              <th class="px-6 py-3">Estado</th>
+              <th class="px-6 py-3">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="appointmentTableBody" class="text-gray-800"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div id="reasonModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded shadow-lg max-w-sm text-center">
+      <h2 class="text-lg font-bold mb-4">Motivo de cancelación</h2>
+      <p id="modalReasonText" class="mb-4 text-gray-700"></p>
+      <button onclick="closeModal()" class="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800">Cerrar</button>
+    </div>
+  </div>
+
+  <script>
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+
+    const token = getCookie("jwt");
+
+    fetch("/api/client/appointments", { credentials: "include" })
+      .then(res => res.json())
+      .then(data => {
+        const tbody = document.getElementById("appointmentTableBody");
+        tbody.innerHTML = "";
+
+        console.log("Datos recibidos:", data);
+        data.reverse().forEach(cita => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="px-6 py-4">${cita.fecha} ${cita.hora}</td>
+            <td class="px-6 py-4">${cita.mascota}</td>
+            <td class="px-6 py-4">${cita.servicio}</td>
+            <td class="px-6 py-4">${cita.veterinario}</td>
+            <td class="px-6 py-4">${renderStatusBadge(cita.estado)}</td>
+            <td class="px-6 py-4">${renderActionButton(cita)}</td>
+            `;
+          tbody.appendChild(tr);
+        });
+      })
+      .catch(err => {
+        console.error("Error al cargar citas:", err);
+      });
+
+    function renderStatusBadge(status) {
+      switch (status) {
+        case "REGISTRADA":
+          return `<span class="text-blue-600 border border-blue-600 px-2 py-1 rounded-full text-xs">Registrada</span>`;
+        case "FINALIZADA":
+          return `<span class="text-green-600 bg-green-100 px-2 py-1 rounded-full text-xs">Finalizada</span>`;
+        case "CANCELADA":
+          return `<span class="text-red-600 bg-red-100 px-2 py-1 rounded-full text-xs">Cancelada</span>`;
+        default:
+          return `<span class="text-gray-600 bg-gray-100 px-2 py-1 rounded-full text-xs">${status}</span>`;
+      }
+    }
+
+    function renderActionButton(cita) {
+      if (cita.estado === "CANCELADA" && cita.motivoCancelacion) {
+        return `<button onclick="showReason('${cita.motivoCancelacion.replace(/'/g, "\\'")}')" class="text-blue-700 underline">Ver motivo</button>`;
+      } else {
+        return `<span class="text-gray-400 text-xs">-</span>`;
+      }
+    }
+
+    function showReason(reason) {
+      document.getElementById("modalReasonText").innerText = reason;
+      document.getElementById("reasonModal").classList.remove("hidden");
+    }
+
+    function closeModal() {
+      document.getElementById("reasonModal").classList.add("hidden");
+    }
+
+    function logout() {
+      document.cookie = "jwt=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
+      window.location.href = "/";
+    }
+
+    document.getElementById("searchInput").addEventListener("input", function() {
+      const searchValue = this.value.toLowerCase();
+      const rows = document.querySelectorAll("#appointmentTableBody tr");
+      
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(searchValue) ? "" : "none";
+      });
+    });
+
+  </script>
+
+</body>
+</html>

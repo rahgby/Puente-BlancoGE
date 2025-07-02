@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gestión de Horarios</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+
+  <!-- Barra superior -->
+  <header class="bg-blue-900 text-white py-4 px-6 flex justify-between items-center w-full">
+    <h1 class="text-xl font-bold">Clínica y Veterinaria Puente Blanco</h1>
+    <span>Gestión de Horarios</span>
+  </header>
+
+  <div class="flex flex-1">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-gray-800 text-white flex flex-col justify-between min-h-full">
+      <nav class="flex flex-col p-4 space-y-4">
+          <a href="/vet/veterinarian_dashboard.html" class="flex items-center gap-3 hover:text-blue-300"><i class="fa-solid fa-table-columns"></i> Dashboard</a>
+          <a href="/vet/veterinarian_appointments.html" class="flex items-center gap-3 hover:text-blue-300"><i class="fa-solid fa-calendar-days"></i> Citas Agendadas</a>
+          <a href="/vet/veterinarian_attend.html" class="flex items-center gap-3 hover:text-blue-300"><i class="fa-solid fa-stethoscope"></i> Atender Cita</a>
+          <a href="/vet/veterinarian_clinicalreport.html" class="flex items-center gap-3 hover:text-blue-300"><i class="fa-solid fa-user"></i> Historial del Paciente</a>
+          <a href="/vet/veterinarian_schedule.html" class="flex items-center gap-3 hover:text-blue-300"><i class="fa-solid fa-clock"></i> Horario</a>
+          <a href="/vet/vet_assign.html" class="flex items-center gap-3 hover:text-blue-300"><i class="fa-solid fa-user"></i> Asignación</a>
+          <a href="/vet/veterinarian_validate.html" class="flex items-center gap-3 hover:text-blue-300"><i class="fa-solid fa-check-double"></i> Validar Evaluaciones</a>
+          <a href="/vet/veterinarian_reports.html" class="flex items-center gap-3 text-blue-300"><i class="fa-solid fa-chart-pie"></i> Reportes</a>
+        </nav>
+      <button onclick="logout()" class="m-4 flex items-center justify-center gap-2 bg-gray-100 text-red-500 px-4 py-2 rounded hover:bg-gray-200">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i> Cerrar Sesión
+      </button>
+    </aside>
+
+    <!-- Contenido principal -->
+    <main class="flex-1 p-8 space-y-6">
+      <h2 class="text-2xl font-bold text-gray-800">Gestionar Horario</h2>
+
+      <div class="bg-white rounded shadow p-6 max-w-2xl mx-auto">
+        <form id="scheduleForm" class="space-y-4">
+          <div>
+            <label class="block font-medium text-gray-700 mb-1">Selecciona los días:</label>
+            <div class="grid grid-cols-2 gap-2">
+              <label><input type="checkbox" name="dias" value="Lunes" class="mr-2">Lunes</label>
+              <label><input type="checkbox" name="dias" value="Martes" class="mr-2">Martes</label>
+              <label><input type="checkbox" name="dias" value="Miércoles" class="mr-2">Miércoles</label>
+              <label><input type="checkbox" name="dias" value="Jueves" class="mr-2">Jueves</label>
+              <label><input type="checkbox" name="dias" value="Viernes" class="mr-2">Viernes</label>
+              <label><input type="checkbox" name="dias" value="Sábado" class="mr-2">Sábado</label>
+            </div>
+          </div>
+
+          <div class="flex gap-4">
+            <div class="flex-1">
+              <label for="horaInicio" class="block text-sm font-medium text-gray-700">Hora de Inicio</label>
+              <input type="time" id="horaInicio" name="horaInicio" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+            </div>
+            <div class="flex-1">
+              <label for="horaFin" class="block text-sm font-medium text-gray-700">Hora de Fin</label>
+              <input type="time" id="horaFin" name="horaFin" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+            </div>
+          </div>
+
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded">
+            Modificar Horario
+          </button>
+          <p id="responseMsg" class="text-green-600 text-sm mt-2 hidden">Horario Modificado correctamente.</p>
+          <p id="errorMsg" class="text-red-600 text-sm mt-2 hidden">Error al solicitar el horario.</p>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function logout() {
+      document.cookie = "jwt=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
+      window.location.href = "/";
+    }
+
+    document.getElementById("scheduleForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const diasSeleccionados = Array.from(document.querySelectorAll("input[name='dias']:checked"))
+                                     .map(cb => cb.value);
+      const horaInicio = document.getElementById("horaInicio").value;
+      const horaFin = document.getElementById("horaFin").value;
+
+      const payload = diasSeleccionados.map(dia => ({
+        diaSemana: dia,
+        horaComienzo: horaInicio,
+        horaFin: horaFin
+      }));
+
+      const responseMsg = document.getElementById("responseMsg");
+      const errorMsg = document.getElementById("errorMsg");
+
+      responseMsg.classList.add("hidden");
+      errorMsg.classList.add("hidden");
+
+      try {
+        const res = await fetch("/api/vet/schedule/update", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          credentials: "include",
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          responseMsg.classList.remove("hidden");
+        } else {
+          errorMsg.classList.remove("hidden");
+        }
+      } catch (err) {
+        errorMsg.classList.remove("hidden");
+      }
+    });
+  </script>
+
+</body>
+</html>

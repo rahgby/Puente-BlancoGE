@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Validar Citas Evaluadas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+
+  <!-- Barra superior -->
+  <header class="bg-blue-900 text-white py-4 px-6 flex justify-between items-center w-full">
+    <h1 class="text-xl font-bold">Clínica y Veterinaria Puente Blanco</h1>
+    <span>Validación de Citas Evaluadas</span>
+  </header>
+
+  <div class="flex flex-1">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-gray-800 text-white flex flex-col justify-between min-h-full">
+      <div>
+        <nav class="flex flex-col p-4 space-y-4">
+          <a href="/vet/veterinarian_dashboard.html" class="flex items-center gap-3 hover:text-blue-300"><i class="fa-solid fa-table-columns"></i> Dashboard</a>
+          <a href="/vet/veterinarian_appointments.html" class="flex items-center gap-3 hover:text-blue-300"><i class="fa-solid fa-calendar-days"></i> Citas Agendadas</a>
+          <a href="/vet/veterinarian_attend.html" class="flex items-center gap-3 hover:text-blue-300"><i class="fa-solid fa-stethoscope"></i> Atender Cita</a>
+          <a href="/vet/veterinarian_clinicalreport.html" class="flex items-center gap-3 hover:text-blue-300"><i class="fa-solid fa-user"></i> Historial del Paciente</a>
+          <a href="/vet/veterinarian_schedule.html" class="flex items-center gap-3 hover:text-blue-300"><i class="fa-solid fa-clock"></i> Horario</a>
+          <a href="/vet/vet_assign.html" class="flex items-center gap-3 hover:text-blue-300"><i class="fa-solid fa-user"></i> Asignación</a>
+          <a href="/vet/veterinarian_validate.html" class="flex items-center gap-3 hover:text-blue-300"><i class="fa-solid fa-check-double"></i> Validar Evaluaciones</a>
+          <a href="/vet/veterinarian_reports.html" class="flex items-center gap-3 text-blue-300"><i class="fa-solid fa-chart-pie"></i> Reportes</a>
+        </nav>
+      </div>
+      <button onclick="logout()" class="m-4 flex items-center justify-center gap-2 bg-gray-100 text-red-500 px-4 py-2 rounded hover:bg-gray-200">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i> Cerrar Sesión
+      </button>
+    </aside>
+
+    <!-- Contenido -->
+    <main class="flex-1 p-8 space-y-8">
+      <h2 class="text-2xl font-bold text-gray-800 mb-4">Citas Evaluadas Pendientes de Validación</h2>
+
+      <div class="overflow-x-auto bg-white rounded shadow">
+        <table class="min-w-full table-auto">
+          <thead class="bg-gray-200 text-gray-700">
+            <tr>
+              <th class="px-4 py-2 text-left">Fecha</th>
+              <th class="px-4 py-2 text-left">Hora</th>
+              <th class="px-4 py-2 text-left">Cliente</th>
+              <th class="px-4 py-2 text-left">Mascota</th>
+              <th class="px-4 py-2 text-left">Tipo</th>
+              <th class="px-4 py-2 text-left">Raza</th>
+              <th class="px-4 py-2 text-left">Practicante</th>
+              <th class="px-4 py-2 text-left">Servicio</th>
+              <th class="px-4 py-2 text-left">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tablaCitas" class="text-gray-700">
+            <tr><td colspan="9" class="text-center py-4">Cargando citas...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Detalle -->
+  <div id="modalDetalle" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white w-full max-w-2xl rounded-lg shadow-lg p-6 relative">
+      <button onclick="cerrarModal()" class="absolute top-2 right-2 text-gray-500 hover:text-red-600 text-xl">
+        &times;
+      </button>
+      <h3 class="text-xl font-bold mb-4 text-gray-800">Detalles de la Atención Médica</h3>
+      <div class="space-y-2 text-gray-700">
+        <p><strong>Observaciones clínicas:</strong> <span id="observaciones"></span></p>
+        <p><strong>Diagnóstico:</strong> <span id="diagnostico"></span></p>
+        <p><strong>Tratamiento:</strong> <span id="tratamiento"></span></p>
+        <p><strong>Prescripción:</strong> <span id="prescripcion"></span></p>
+      </div>
+      <div class="mt-6 flex justify-end gap-4">
+        <button onclick="validarCita()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+          <i class="fa-solid fa-check"></i> Validar Cita
+        </button>
+        <button onclick="rechazarCita()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+          <i class="fa-solid fa-xmark"></i> Rechazar Evaluación
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let citaIdActual = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      cargarCitas();
+    });
+
+    function cargarCitas() {
+      fetch("/api/vet/appointments/validate?estado=EVALUADA", { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => {
+          const tbody = document.getElementById("tablaCitas");
+          tbody.innerHTML = "";
+
+          if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-gray-500">No hay citas evaluadas pendientes de validación.</td></tr>';
+            return;
+          }
+
+          data.forEach(cita => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td class="px-4 py-2">${cita.fecha}</td>
+              <td class="px-4 py-2">${cita.hora}</td>
+              <td class="px-4 py-2">${cita.nombreCliente}</td>
+              <td class="px-4 py-2">${cita.nombreMascota}</td>
+              <td class="px-4 py-2">${cita.tipoMascota}</td>
+              <td class="px-4 py-2">${cita.razaMascota}</td>
+              <td class="px-4 py-2">${cita.nombrePracticante}</td>
+              <td class="px-4 py-2">${cita.servicio}</td>
+              <td class="px-4 py-2">
+                <button onclick="abrirModal(${cita.citaId})" class="text-blue-600 hover:underline">Ver Detalles</button>
+              </td>
+            `;
+            tbody.appendChild(row);
+          });
+        });
+    }
+
+    function abrirModal(citaId) {
+      citaIdActual = citaId;
+      fetch(`/api/vet/appointments/validate/${citaId}/detalle`, { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("observaciones").innerText = data.observacionesClinicas || "No registradas";
+          document.getElementById("diagnostico").innerText = data.diagnostico || "No registrado";
+          document.getElementById("tratamiento").innerText = data.tratamiento || "No registrado";
+          document.getElementById("prescripcion").innerText = data.prescripcion || "No registrada";
+          document.getElementById("modalDetalle").classList.remove("hidden");
+        });
+    }
+
+    function validarCita() {
+      if (!citaIdActual) return;
+      fetch(`/api/vet/appointments/${citaIdActual}/estado`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: "COMPLETADA" }),
+        credentials: "include"
+      }).then(() => {
+        cerrarModal();
+        cargarCitas();
+      });
+    }
+
+    function rechazarCita() {
+      if (!citaIdActual) return;
+      fetch(`/api/vet/appointments/${citaIdActual}/estado`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: "PROGRAMADA" }),
+        credentials: "include"
+      }).then(() => {
+        cerrarModal();
+        cargarCitas();
+      });
+    }
+
+    function cerrarModal() {
+      document.getElementById("modalDetalle").classList.add("hidden");
+      citaIdActual = null;
+    }
+
+    function logout() {
+      document.cookie = "jwt=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+      window.location.href = "/";
+    }
+  </script>
+
+</body>
+</html>

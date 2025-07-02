@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pagos - Puente Blanco</title>
+  <script src="https://js.stripe.com/v3/"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex">
+
+<!-- Encabezado -->
+<header class="bg-blue-900 text-white py-4 px-6 flex justify-between items-center w-full fixed top-0 z-10">
+  <h1 class="text-xl font-bold">Clínica y Veterinaria Puente Blanco</h1>
+  <span th:text="'Welcome, ' + ${dashboard?.fullName}">Bienvenido</span>
+</header>
+
+<div class="flex pt-20 w-full">
+  <!-- Sidebar -->
+  <aside class="w-64 bg-gray-800 text-white flex flex-col justify-between">
+    <div>
+      <nav class="flex flex-col p-4 space-y-4">
+        <a th:href="@{/dashboard}" class="flex items-center gap-3 font-semibold hover:text-blue-300">
+          <i class="fa-solid fa-table-columns"></i> Dashboard
+        </a>
+        <a th:href="@{/book-appointment}" class="flex items-center gap-3 hover:text-blue-300">
+          <i class="fa-solid fa-calendar-plus"></i> Agendar Cita
+        </a>
+        <a th:href="@{/appointments}" class="flex items-center gap-3 hover:text-blue-300">
+          <i class="fa-solid fa-calendar-days"></i> Ver Citas
+        </a>
+        <a th:href="@{/cancel-appointment}" class="flex items-center gap-3 hover:text-blue-300">
+          <i class="fa-solid fa-ban"></i> Cancelar Cita
+        </a>
+        <a th:href="@{/veterinarians}" class="flex items-center gap-3 hover:text-blue-300">
+          <i class="fa-solid fa-user-md"></i> Veterinarios
+        </a>
+        <a th:href="@{/vaccination}" class="flex items-center gap-3 hover:text-blue-300">
+          <i class="fa-solid fa-syringe"></i> Vacunación
+        </a>
+      </nav>
+    </div>
+    <button onclick="logout()" class="m-4 flex items-center justify-center gap-2 bg-gray-100 text-red-500 px-4 py-2 rounded hover:bg-gray-200">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i> Cerrar Sesión
+    </button>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 p-10 flex flex-col gap-8">
+
+    <!-- Sección Pagos Pendientes -->
+    <section>
+      <h3 class="text-xl font-semibold mb-4">Pagos Pendientes</h3>
+      <div id="pending-payments" class="space-y-4"></div>
+    </section>
+
+    <!-- Sección Formulario de Pago -->
+    <section class="bg-white shadow p-6 rounded-lg">
+      <h3 class="text-xl font-semibold mb-4">Realizar Pago</h3>
+      <form id="payment-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Seleccionar Cita</label>
+          <select id="selected-payment" class="w-full p-2 border rounded" required></select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Detalles de Tarjeta</label>
+          <div id="card-element" class="p-3 border rounded"></div>
+        </div>
+
+        <div class="bg-pink-50 border-l-4 border-pink-500 text-sm p-3 rounded">
+          🔒 Pago Seguro — Tu tarjeta está encriptada y protegida.
+        </div>
+
+        <button id="submit-button" class="w-full bg-pink-600 text-white py-2 px-4 rounded hover:bg-pink-700 transition">
+          Procesar Pago
+        </button>
+
+        <p id="payment-status" class="text-sm text-center mt-2 text-gray-600"></p>
+      </form>
+    </section>
+
+    <!-- Sección Pagos Realizados -->
+    <section>
+      <h3 class="text-xl font-semibold mt-6 mb-4">Pagos Realizados</h3>
+      <div id="paid-payments" class="space-y-4"></div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  const stripe = Stripe("pk_test_51RalEZRoNCO7cM0RzhlBfpNSCY3xvpl9MVsWBHSe4KE98iAtBeZ91f8JCPyL7K7Ti5xsDLDL5XGM7bcz5401VQGo00iBzXiRoV");
+  const elements = stripe.elements();
+  const card = elements.create("card");
+  card.mount("#card-element");
+
+  let selectedCitas = [];
+
+  async function fetchScheduledAppointments() {
+    const res = await fetch("/api/client/appointments/scheduled", {
+      method: "GET",
+      credentials: "include"
+    });
+    const citas = await res.json();
+    const container = document.getElementById("pending-payments");
+    const select = document.getElementById("selected-payment");
+
+    container.innerHTML = "";
+    select.innerHTML = "";
+    selectedCitas = citas;
+
+    citas.forEach(cita => {
+      const cardHtml = `
+        <div class="bg-white shadow p-4 rounded-lg flex justify-between items-center">
+          <div>
+            <p class="font-medium">${cita.tipoServicio} - ${cita.nombreMascota}</p>
+            <p class="text-sm text-gray-500">Raza: ${cita.razaMascota}</p>
+            <p class="text-sm text-gray-500">Cita: ${cita.fechaCita}</p>
+          </div>
+          <div class="text-right">
+            <p class="text-lg font-bold">S/${(cita.monto).toFixed(2)}</p>
+            <span class="text-orange-500 text-sm font-semibold">${cita.estado}</span>
+          </div>
+        </div>
+      `;
+      container.innerHTML += cardHtml;
+
+      const opt = document.createElement("option");
+      opt.value = cita.citaId;
+      opt.textContent = `${cita.tipoServicio} - ${cita.nombreMascota} (S/${(cita.monto).toFixed(2)})`;
+      select.appendChild(opt);
+    });
+  }
+
+  async function fetchPaidAppointments() {
+    const res = await fetch("/api/client/appointments/pagadas", {
+      method: "GET",
+      credentials: "include"
+    });
+    const citas = await res.json();
+    const container = document.getElementById("paid-payments");
+    container.innerHTML = "";
+
+    citas.forEach(cita => {
+      const cardHtml = `
+        <div class="bg-white shadow p-4 rounded-lg flex justify-between items-center">
+          <div>
+            <p class="font-medium">${cita.tipoServicio} - ${cita.nombreMascota}</p>
+            <p class="text-sm text-gray-500">Raza: ${cita.razaMascota}</p>
+            <p class="text-sm text-gray-500">Cita: ${cita.fechaCita}</p>
+          </div>
+          <div class="text-right">
+            <p class="text-lg font-bold">S/${(cita.monto).toFixed(2)}</p>
+            <span class="text-green-600 text-sm font-semibold">PAGADA</span>
+          </div>
+        </div>
+      `;
+      container.innerHTML += cardHtml;
+    });
+  }
+
+  fetchScheduledAppointments();
+  fetchPaidAppointments();
+
+  const form = document.getElementById("payment-form");
+  const status = document.getElementById("payment-status");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const citaId = document.getElementById("selected-payment").value;
+    const cita = selectedCitas.find(c => c.citaId == citaId);
+
+    if (!cita) {
+      status.textContent = "No se pudo encontrar la cita seleccionada.";
+      return;
+    }
+
+    const { error, paymentMethod } = await stripe.createPaymentMethod({
+      type: "card",
+      card: card
+    });
+
+    if (error) {
+      status.textContent = "❌ " + error.message;
+      return;
+    }
+
+    const res = await fetch("/api/payments/create", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        paymentMethodId: paymentMethod.id,
+        amount: cita.monto,
+        currency: "pen",
+        description: `${cita.tipoServicio} - ${cita.nombreMascota}`,
+        citaId: cita.citaId
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      status.textContent = "✅ Pago exitoso.";
+      await fetchScheduledAppointments();
+      await fetchPaidAppointments();
+    } else {
+      const errMsg = await res.text();
+      status.textContent = "❌ Error al procesar el pago: " + errMsg;
+    }
+  });
+
+  function logout() {
+    document.cookie = "jwt=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
+    window.location.href = "/";
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard Practicante</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+
+  <!-- Barra superior -->
+  <header class="bg-blue-900 text-white py-4 px-6 flex justify-between items-center w-full">
+    <h1 class="text-xl font-bold">Clínica y Veterinaria Puente Blanco</h1>
+    <span>Panel del Practicante</span>
+  </header>
+
+  <div class="flex flex-1">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-gray-800 text-white flex flex-col justify-between min-h-full">
+      <div>
+        <nav class="flex flex-col p-4 space-y-4">
+          <a href="/intern/intern_dashboard.html" class="flex items-center gap-3 text-blue-300">
+            <i class="fa-solid fa-table-columns"></i> Dashboard
+          </a>
+          <a href="/intern/intern_appointments.html" class="flex items-center gap-3 hover:text-blue-300">
+            <i class="fa-solid fa-calendar-check"></i> Citas Derivadas
+          </a>
+          <a href="/intern/intern_attend.html" class="flex items-center gap-3 hover:text-blue-300">
+            <i class="fa-solid fa-stethoscope"></i> Atender Cita
+          </a>
+          <a href="/intern/intern_validated.html" class="flex items-center gap-3 text-blue-300">
+            <i class="fa-solid fa-check-double"></i> Citas Validadas
+          </a>
+        </nav>
+      </div>
+      <button onclick="logout()" class="m-4 flex items-center justify-center gap-2 bg-gray-100 text-red-500 px-4 py-2 rounded hover:bg-gray-200">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i> Cerrar Sesión
+      </button>
+    </aside>
+
+    <!-- Contenido -->
+    <main class="flex-1 p-8 space-y-8">
+      <h2 class="text-2xl font-bold text-gray-800">Resumen de Actividades</h2>
+
+      <!-- Tarjetas resumen -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white p-6 rounded-lg shadow-md flex items-center gap-4">
+          <i class="fa-solid fa-calendar-day text-3xl text-blue-600"></i>
+          <div>
+            <p class="text-sm text-gray-500">Citas Derivadas</p>
+            <p id="countDerivadas" class="text-2xl font-bold text-gray-800">--</p>
+          </div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md flex items-center gap-4">
+          <i class="fa-solid fa-clipboard-check text-3xl text-yellow-500"></i>
+          <div>
+            <p class="text-sm text-gray-500">Citas Aprobadas</p>
+            <p id="countAprobadas" class="text-2xl font-bold text-gray-800">--</p>
+          </div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md flex items-center gap-4">
+          <i class="fa-solid fa-list-check text-3xl text-green-600"></i>
+          <div>
+            <p class="text-sm text-gray-500">Tareas Pendientes</p>
+            <p id="countTareas" class="text-2xl font-bold text-gray-800">--</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Citas Derivadas -->
+      <section class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Citas Derivadas de Hoy</h3>
+        <ul id="citasDerivadas" class="list-disc pl-5 text-gray-700 space-y-1">
+          <li>Cargando citas...</li>
+        </ul>
+      </section>
+
+      <!-- Citas Aprobadas -->
+      <section class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Citas Aprobadas</h3>
+        <ul id="citasAprobadas" class="list-disc pl-5 text-gray-700 space-y-1">
+          <li>Cargando citas...</li>
+        </ul>
+      </section>
+
+      <!-- Tareas Pendientes -->
+      <section class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Tareas Pendientes</h3>
+        <form id="taskForm" class="flex gap-3 mb-4">
+          <input type="text" id="newTask" class="flex-1 border border-gray-300 rounded px-3 py-2" placeholder="Nueva tarea..." />
+          <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Agregar</button>
+        </form>
+        <ul id="taskList" class="space-y-2 text-gray-800"></ul>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const taskForm = document.getElementById("taskForm");
+    const newTaskInput = document.getElementById("newTask");
+    const taskList = document.getElementById("taskList");
+
+    function updateTaskCount() {
+      const count = taskList.children.length;
+      document.getElementById("countTareas").textContent = count;
+    }
+
+    taskForm.addEventListener("submit", e => {
+      e.preventDefault();
+      const taskText = newTaskInput.value.trim();
+      if (taskText) {
+        const li = document.createElement("li");
+        li.className = "flex justify-between items-center border-b pb-1";
+        li.innerHTML = `<span>${taskText}</span>
+          <button class="text-red-600"><i class="fa-solid fa-trash"></i></button>`;
+        li.querySelector("button").addEventListener("click", () => {
+          li.remove();
+          updateTaskCount();
+        });
+        taskList.appendChild(li);
+        newTaskInput.value = "";
+        updateTaskCount();
+      }
+    });
+
+    // Cargar citas derivadas
+    fetch("/api/intern/appointments?estado=DERIVADA", { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        const citasDerivadas = document.getElementById("citasDerivadas");
+        citasDerivadas.innerHTML = "";
+        document.getElementById("countDerivadas").textContent = data.length;
+        data.forEach(cita => {
+          const item = document.createElement("li");
+          item.textContent = `${cita.fecha} - ${cita.hora} - ${cita.nombreMascota} (${cita.servicio})`;
+          citasDerivadas.appendChild(item);
+        });
+      });
+
+    // Cargar citas aprobadas
+    fetch("/api/intern/appointments/aprobadas", { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        const citasAprobadas = document.getElementById("citasAprobadas");
+        citasAprobadas.innerHTML = "";
+        document.getElementById("countAprobadas").textContent = data.length;
+        data.forEach(cita => {
+          const item = document.createElement("li");
+          item.textContent = `${cita.fechaHora} - ${cita.mascota} (${cita.servicio})`;
+          citasAprobadas.appendChild(item);
+        });
+      });
+
+    function logout() {
+      document.cookie = "jwt=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+      window.location.href = "/";
+    }
+
+    updateTaskCount();
+  </script>
+
+</body>
+</html>
