@@ -3,145 +3,113 @@ package com.puenteblanco.pb.services.pdf;
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
 import com.puenteblanco.pb.dto.reportes.HistorialMedicoMascotaDTO;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.io.FileOutputStream;
+import java.awt.image.BufferedImage;
+import java.io.OutputStream;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class PdfMedicalHistoryService {
 
-    public String generarPdfHistorialMascota(String nombreArchivo, List<HistorialMedicoMascotaDTO> historial) {
-        String rutaArchivo = "storage/reportes/" + nombreArchivo;
-        Document documento = new Document(PageSize.A4, 50, 50, 50, 50);
-
+    public void generarPdfHistorialMedico(OutputStream outputStream, List<HistorialMedicoMascotaDTO> datos, String emitidoPor) {
         try {
-            PdfWriter writer = PdfWriter.getInstance(documento, new FileOutputStream(rutaArchivo));
-            documento.open();
+            Document document = new Document(PageSize.A4);
+            PdfWriter.getInstance(document, outputStream);
+            document.open();
 
-            // Título
-            Font fontTitulo = new Font(Font.FontFamily.HELVETICA, 16, Font.BOLD, BaseColor.BLACK);
-            Paragraph titulo = new Paragraph("Historial Médico de Mascota", fontTitulo);
+            // Fuentes
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, BaseColor.BLACK);
+            Font infoFont = FontFactory.getFont(FontFactory.HELVETICA, 10, BaseColor.DARK_GRAY);
+            Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, BaseColor.WHITE);
+            Font cellFont = FontFactory.getFont(FontFactory.HELVETICA, 10, BaseColor.BLACK);
+            Font noteFont = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 9, BaseColor.DARK_GRAY);
+
+            // Logo
+            try {
+                Image logo = Image.getInstance("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUmPimESLrfakGu3D6-CudXDLQiIGow6GElg&s");
+                logo.scaleToFit(80, 80);
+                logo.setAlignment(Image.LEFT | Image.TEXTWRAP);
+                document.add(logo);
+            } catch (Exception ignored) {}
+
+            // Encabezado
+            Paragraph p1 = new Paragraph("Clínica y Farmacia Veterinaria Puente Blanco - CLIFARVET", titleFont);
+            p1.setAlignment(Element.ALIGN_CENTER);
+            document.add(p1);
+
+            Paragraph p2 = new Paragraph("Urb. Puente Blanco J-9 Ica, Ica, Perú", infoFont);
+            p2.setAlignment(Element.ALIGN_CENTER);
+            document.add(p2);
+
+            Paragraph p3 = new Paragraph("RUC: 12345678901", infoFont);
+            p3.setAlignment(Element.ALIGN_CENTER);
+            document.add(p3);
+
+            document.add(Chunk.NEWLINE);
+
+            Paragraph titulo = new Paragraph("HISTORIAL MÉDICO DE MASCOTA", titleFont);
             titulo.setAlignment(Element.ALIGN_CENTER);
-            titulo.setSpacingAfter(20);
-            documento.add(titulo);
+            document.add(titulo);
+            document.add(Chunk.NEWLINE);
 
-            if (!historial.isEmpty()) {
-                HistorialMedicoMascotaDTO info = historial.get(0);
-                Font fontInfo = new Font(Font.FontFamily.HELVETICA, 11, Font.NORMAL, BaseColor.DARK_GRAY);
-
-                Paragraph datosMascota = new Paragraph(String.format(
-                        "Nombre: %s\nTipo: %s\nRaza: %s\nPropietario: %s",
-                        info.getNombreMascota(), info.getTipoMascota(),
-                        info.getRaza(), info.getPropietario()
-                ), fontInfo);
-                datosMascota.setSpacingAfter(20);
-                documento.add(datosMascota);
+            if (!datos.isEmpty()) {
+                HistorialMedicoMascotaDTO info = datos.get(0);
+                Paragraph p4 = new Paragraph("Nombre: " + info.getNombreMascota(), cellFont);
+                Paragraph p5 = new Paragraph("Tipo: " + info.getTipoMascota() + "     Raza: " + info.getRaza(), cellFont);
+                Paragraph p6 = new Paragraph("Propietario: " + info.getPropietario(), cellFont);
+                p4.setSpacingAfter(3f);
+                p5.setSpacingAfter(3f);
+                p6.setSpacingAfter(10f);
+                document.add(p4);
+                document.add(p5);
+                document.add(p6);
             }
 
-            // Tabla de historial
-            PdfPTable tabla = new PdfPTable(5);
-            tabla.setWidthPercentage(100);
-            tabla.setSpacingBefore(10);
-            tabla.setWidths(new float[]{2, 3, 4, 4, 4});
+            // Tabla
+            PdfPTable table = new PdfPTable(5);
+            table.setWidthPercentage(100);
+            table.setWidths(new float[]{1.5f, 2f, 2.5f, 2.5f, 2.5f});
+            String[] headers = {"Fecha", "Servicio", "Diagnóstico", "Tratamiento", "Observaciones"};
 
-            Font fontCabecera = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.WHITE);
-            BaseColor colorCabecera = new BaseColor(44, 62, 80);
-
-            String[] encabezados = {"Fecha", "Servicio", "Diagnóstico", "Tratamiento", "Observaciones"};
-            for (String encabezado : encabezados) {
-                PdfPCell celda = new PdfPCell(new Phrase(encabezado, fontCabecera));
-                celda.setBackgroundColor(colorCabecera);
-                celda.setHorizontalAlignment(Element.ALIGN_CENTER);
-                celda.setPadding(5);
-                tabla.addCell(celda);
+            for (String h : headers) {
+                PdfPCell cell = new PdfPCell(new Phrase(h, headerFont));
+                cell.setBackgroundColor(BaseColor.GRAY);
+                cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                table.addCell(cell);
             }
 
-            Font fontFila = new Font(Font.FontFamily.HELVETICA, 9, Font.NORMAL, BaseColor.BLACK);
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-
-            for (HistorialMedicoMascotaDTO item : historial) {
-                tabla.addCell(new PdfPCell(new Phrase(item.getFecha().format(formatter), fontFila)));
-                tabla.addCell(new PdfPCell(new Phrase(item.getServicio(), fontFila)));
-                tabla.addCell(new PdfPCell(new Phrase(item.getDiagnostico(), fontFila)));
-                tabla.addCell(new PdfPCell(new Phrase(item.getTratamiento(), fontFila)));
-                tabla.addCell(new PdfPCell(new Phrase(item.getObservaciones(), fontFila)));
+            for (HistorialMedicoMascotaDTO dto : datos) {
+                table.addCell(new PdfPCell(new Phrase(dto.getFecha().toString(), cellFont)));
+                table.addCell(new PdfPCell(new Phrase(dto.getServicio(), cellFont)));
+                table.addCell(new PdfPCell(new Phrase(dto.getDiagnostico(), cellFont)));
+                table.addCell(new PdfPCell(new Phrase(dto.getTratamiento(), cellFont)));
+                table.addCell(new PdfPCell(new Phrase(dto.getObservaciones(), cellFont)));
             }
 
-            documento.add(tabla);
+            document.add(table);
+            document.add(Chunk.NEWLINE);
 
-            // Gráfico simple: cantidad por servicio
-            Paragraph subtituloGrafico = new Paragraph("Resumen Visual de Servicios", new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD));
-            subtituloGrafico.setSpacingBefore(20);
-            subtituloGrafico.setSpacingAfter(10);
-            documento.add(subtituloGrafico);
+            // Footer
+            Paragraph pie = new Paragraph("Reporte generado automáticamente por el sistema", noteFont);
+            pie.setAlignment(Element.ALIGN_RIGHT);
+            document.add(pie);
 
-            Image grafico = generarGraficoCircular(historial);
-            if (grafico != null) {
-                grafico.scaleToFit(400, 400);
-                grafico.setAlignment(Image.ALIGN_CENTER);
-                documento.add(grafico);
-            }
+            Paragraph emitido = new Paragraph("Emitido por: " + emitidoPor + " - Fecha: " +
+                    LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), noteFont);
+            emitido.setAlignment(Element.ALIGN_RIGHT);
+            document.add(emitido);
 
-            // Firma
-            Paragraph firma = new Paragraph("\n\n________________________\nFirma del Veterinario", fontFila);
-            firma.setAlignment(Element.ALIGN_RIGHT);
-            firma.setSpacingBefore(40);
-            documento.add(firma);
+            Paragraph hora = new Paragraph("Hora: " + java.time.LocalTime.now()
+                    .format(DateTimeFormatter.ofPattern("HH:mm:ss")), noteFont);
+            hora.setAlignment(Element.ALIGN_RIGHT);
+            document.add(hora);
 
-            documento.close();
-            writer.close();
-            return rutaArchivo;
-
+            document.close();
         } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    private Image generarGraficoCircular(List<HistorialMedicoMascotaDTO> historial) {
-        try {
-            java.util.Map<String, Integer> contador = new java.util.HashMap<>();
-            for (HistorialMedicoMascotaDTO h : historial) {
-                contador.put(h.getServicio(), contador.getOrDefault(h.getServicio(), 0) + 1);
-            }
-
-            int width = 500, height = 300;
-            java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(width, height, java.awt.image.BufferedImage.TYPE_INT_RGB);
-            java.awt.Graphics2D g = image.createGraphics();
-
-            g.setColor(java.awt.Color.WHITE);
-            g.fillRect(0, 0, width, height);
-
-            int total = contador.values().stream().mapToInt(i -> i).sum();
-            int startAngle = 0;
-
-            java.util.List<java.awt.Color> colores = java.util.List.of(
-                java.awt.Color.BLUE, java.awt.Color.GREEN, java.awt.Color.ORANGE,
-                java.awt.Color.MAGENTA, java.awt.Color.CYAN, java.awt.Color.RED
-            );
-
-            int i = 0;
-            for (var entry : contador.entrySet()) {
-                int angle = (int) Math.round(360.0 * entry.getValue() / total);
-                g.setColor(colores.get(i % colores.size()));
-                g.fillArc(50, 50, 200, 200, startAngle, angle);
-                g.drawString(entry.getKey() + " (" + entry.getValue() + ")", 280, 70 + i * 20);
-                startAngle += angle;
-                i++;
-            }
-
-            g.dispose();
-            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-            javax.imageio.ImageIO.write(image, "png", baos);
-            return Image.getInstance(baos.toByteArray());
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
+            throw new RuntimeException("Error generando PDF de historial médico", e);
         }
     }
 }

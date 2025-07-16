@@ -5,11 +5,7 @@ import com.puenteblanco.pb.dto.response.InternCitaValidadaResponseDto;
 import com.puenteblanco.pb.entity.User;
 import com.puenteblanco.pb.repository.UserRepository;
 import com.puenteblanco.pb.services.interfaces.InternAppointmentService;
-import jakarta.servlet.http.HttpServletRequest;
-
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
@@ -46,4 +42,25 @@ public class InternAppointmentController {
         List<InternCitaValidadaResponseDto> citas = internAppointmentService.getCitasValidadasPorIntern(intern.getId());
         return ResponseEntity.ok(citas);
     }
+
+    @GetMapping("/notifications")
+    public ResponseEntity<List<InternAppointmentResponseDto>> obtenerCitasNoVistas(Principal principal) {
+        String correo = principal.getName();
+        User intern = userRepository.findByCorreo(correo)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        List<InternAppointmentResponseDto> citas = internAppointmentService.getCitasDerivadasNoVistas(intern.getId());
+        return ResponseEntity.ok(citas);
+    }
+
+    @PutMapping("/notifications/seen")
+public ResponseEntity<String> marcarCitasDerivadasComoVistas(Principal principal) {
+    String correo = principal.getName();
+    User intern = userRepository.findByCorreo(correo)
+            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+    internAppointmentService.marcarCitasDerivadasComoVistas(intern.getId());
+    return ResponseEntity.ok("Citas marcadas como vistas");
+}
+
 }

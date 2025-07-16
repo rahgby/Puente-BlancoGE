@@ -9,4 +9,5 @@ public class AppointmentRequestDto {
     private String fecha; // formato: "yyyy-MM-dd"
     private String hora;  // formato: "HH:mm"
     private Long petId;   
+    private String email;
 }

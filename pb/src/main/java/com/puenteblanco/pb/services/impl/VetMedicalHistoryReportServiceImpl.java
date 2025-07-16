@@ -21,13 +21,20 @@ public class VetMedicalHistoryReportServiceImpl implements VetMedicalHistoryRepo
         List<AtencionMedica> atenciones = atencionMedicaRepository.findByCitaPetIdOrderByCitaFechaAsc(petId);
 
         return atenciones.stream().map(at -> {
-            var dto = new HistorialMedicoMascotaDTO();
-            dto.setFecha(at.getCita().getFecha());
-            dto.setServicio(at.getCita().getServicio().getDescripcion());
-            dto.setDiagnostico(at.getDiagnostico());
-            dto.setTratamiento(at.getTratamiento());
-            dto.setObservaciones(at.getObservacionesClinicas());
-            return dto;
-        }).collect(Collectors.toList());
+    var dto = new HistorialMedicoMascotaDTO();
+    dto.setFecha(at.getCita().getFecha());
+    dto.setServicio(at.getCita().getServicio().getDescripcion());
+    dto.setDiagnostico(at.getDiagnostico());
+    dto.setTratamiento(at.getTratamiento());
+    dto.setObservaciones(at.getObservacionesClinicas());
+
+    // Datos de cabecera
+    dto.setNombreMascota(at.getCita().getPet().getName());
+    dto.setTipoMascota(at.getCita().getPet().getType());
+    dto.setRaza(at.getCita().getPet().getBreed());
+    dto.setPropietario(at.getCita().getPet().getOwnerEmail());
+
+    return dto;
+}).collect(Collectors.toList());
     }
 }

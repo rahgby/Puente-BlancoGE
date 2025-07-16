@@ -62,4 +62,8 @@ public class Cita extends AudityEntity {
 
     @Column(name = "motivo_cancelacion", length = 255)
     private String motivoCancelacion;
+
+    @Column(name = "visto_interno")
+    private Boolean vistoInterno;
+
 }

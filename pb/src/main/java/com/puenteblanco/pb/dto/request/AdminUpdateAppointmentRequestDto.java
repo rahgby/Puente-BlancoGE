@@ -7,6 +7,5 @@ import lombok.Setter;
 @Setter
 public class AdminUpdateAppointmentRequestDto {
     private Long veterinarioId;  // puede ser veterinario o interno
-    private Long petId;
     private Long servicioId;
 }

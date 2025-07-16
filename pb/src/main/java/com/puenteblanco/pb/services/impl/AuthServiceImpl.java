@@ -124,26 +124,26 @@ public void registerIntern(RegisterInternDto dto) {
     userRepository.save(user);
 }
 
+@Override
+public LoginResponseDto login(LoginRequestDto dto) {
+    User user = userRepository.findByCorreo(dto.getCorreo())
+            .orElseThrow(() -> new RuntimeException("Credenciales inválidas."));
 
-    @Override
-    public LoginResponseDto login(LoginRequestDto dto) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(dto.getCorreo(), dto.getContrasena())
-        );
-
-        User user = userRepository.findByCorreo(dto.getCorreo())
-                .orElseThrow(() -> new RuntimeException("Credenciales inválidas."));
-
-        String token = jwtUtils.generateToken(user);
-
-        return LoginResponseDto.builder()
-                .token(token)
-                .nombreCompleto(
-                        user.getNombres() + " " +
-                        user.getApellidoPaterno() + " " +
-                        user.getApellidoMaterno()
-                )
-                .rol(user.getRole().getNombre())
-                .build();
+    if (!Boolean.TRUE.equals(user.getEstado())) {
+        throw new RuntimeException("Tu cuenta está desactivada. Contacta con el administrador.");
     }
+
+    authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(dto.getCorreo(), dto.getPassword())
+    );
+
+    String token = jwtUtils.generateToken(user);
+
+    return LoginResponseDto.builder()
+            .token(token)
+            .nombreCompleto(user.getNombres() + " " + user.getApellidoPaterno() + " " + user.getApellidoMaterno())
+            .rol(user.getRole().getNombre())
+            .build();
+}
+
 }

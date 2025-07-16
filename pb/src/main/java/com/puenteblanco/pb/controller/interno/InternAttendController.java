@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 public class InternAttendController {
 
     private final InternAttendService internAttendService;
+    
 
     @PostMapping("/{id}/attend")
 public ResponseEntity<Void> registrarAtencion(

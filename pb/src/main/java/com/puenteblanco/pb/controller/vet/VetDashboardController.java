@@ -90,6 +90,15 @@ public ResponseEntity<Map<String, Integer>> getCompletedServicesSummary() {
     return ResponseEntity.ok(resumen);
 }
 
+   // 5. Obtener nombre del veterinario autenticado
+    @GetMapping("/current-vet-name")
+    public ResponseEntity<Map<String, String>> getCurrentVetName() {
+        Veterinario vet = getCurrentVeterinario();
+        return ResponseEntity.ok(Map.of(
+            "fullName", vet.getNombreCompleto()// Opcional: si quieres mostrar especialidad
+        ));
+    }
+
 
     // Método auxiliar para obtener el veterinario autenticado
     private Veterinario getCurrentVeterinario() {

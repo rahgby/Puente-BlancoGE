@@ -2,8 +2,13 @@ package com.puenteblanco.pb.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDate;
+import java.util.Collection;
+import java.util.List;
 
 @Entity
 @Table(name = "user")
@@ -12,7 +17,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class User extends AudityEntity {
+public class User extends AudityEntity implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -60,4 +65,47 @@ public class User extends AudityEntity {
 
     @OneToOne(mappedBy = "usuario", fetch = FetchType.LAZY)
     private Veterinario veterinario;
+
+    @Column(length = 500)
+    private String motivoDesactivacion;
+
+    // ===============================
+    // Métodos requeridos por UserDetails
+    // ===============================
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority("ROLE_" + this.role.getNombre()));
+    }
+
+    @Override
+    public String getUsername() {
+        return this.correo;
+    }
+
+    @Override
+    public String getPassword() {
+        return this.contrasena;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    // 👇 Aquí se valida si el usuario está activo
+    @Override
+    public boolean isEnabled() {
+        return Boolean.TRUE.equals(this.estado);
+    }
 }

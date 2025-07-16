@@ -29,14 +29,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        // ✅ Ignorar rutas públicas como /api/auth/**
         String path = request.getServletPath();
-        if (path.startsWith("/api/auth")) {
+
+        // Ignorar rutas públicas que no requieren JWT
+        if (path.startsWith("/api/auth") || path.startsWith("/api/recovery") || path.startsWith("/api/reniec")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String jwt = extractToken(request); // Puede venir del header o cookie
+        String jwt = extractToken(request);
 
         if (jwt != null) {
             try {
@@ -45,19 +46,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                     UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
+                    // ❌ Bloquear si el usuario está desactivado
+                    if (!userDetails.isEnabled()) {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\": \"Usuario desactivado\"}");
+                        return;
+                    }
+
+                    // ✅ Token válido, continuar autenticando
                     if (jwtUtils.isTokenValid(jwt)) {
-                        UsernamePasswordAuthenticationToken authToken =
-                                new UsernamePasswordAuthenticationToken(
-                                        userDetails,
-                                        null,
-                                        userDetails.getAuthorities()
-                                );
+                        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities());
                         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authToken);
                     }
                 }
             } catch (Exception e) {
                 System.out.println("Error al validar el token JWT: " + e.getMessage());
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"Token inválido o error interno\"}");
+                return;
             }
         }
 

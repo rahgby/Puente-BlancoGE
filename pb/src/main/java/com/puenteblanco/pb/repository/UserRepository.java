@@ -16,17 +16,20 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByNumeroIdentidad(String numeroIdentidad);
 
     @Query("""
-        SELECT new com.puenteblanco.pb.dto.response.VetInternSimpleResponseDto(
-        u.id, u.nombres, u.apellidoPaterno
-        )
-        FROM User u
-        WHERE u.role.id = 4
-        AND u.estado = true
-        """)
-        List<VetInternSimpleResponseDto> findAllInterns();
-    
+            SELECT new com.puenteblanco.pb.dto.response.VetInternSimpleResponseDto(
+            u.id, u.nombres, u.apellidoPaterno
+            )
+            FROM User u
+            WHERE u.role.id = 4
+            AND u.estado = true
+            """)
+    List<VetInternSimpleResponseDto> findAllInterns();
+
     List<User> findByRoleNombreIgnoreCase(String roleNombre);
 
     @Query("SELECT u FROM User u WHERE (:roleId IS NULL OR u.role.id = :roleId)")
     List<User> findAllByOptionalRoleId(Long roleId);
+
+    @Query("SELECT u FROM User u WHERE u.correo = :correo AND u.role.nombre = 'CLIENT'")
+    Optional<User> findClientByCorreo(String correo);
 }

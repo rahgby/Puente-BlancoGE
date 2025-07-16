@@ -1,55 +1,44 @@
 package com.puenteblanco.pb.controller.vet;
 
-import com.puenteblanco.pb.services.pdf.PdfMedicalHistoryService;
+import com.puenteblanco.pb.dto.reportes.HistorialMedicoMascotaDTO;
 import com.puenteblanco.pb.services.interfaces.VetMedicalHistoryReportService;
+import com.puenteblanco.pb.services.pdf.PdfMedicalHistoryService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
-import org.springframework.http.*;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.File;
+import java.io.OutputStream;
+import java.util.List;
 
 @RestController
-@RequestMapping("/api/vet/reports/history")
+@RequestMapping("/api/vet/history")
 @RequiredArgsConstructor
 public class VetMedicalHistoryReportController {
 
-    private final VetMedicalHistoryReportService historyReportService;
+    private final VetMedicalHistoryReportService vetMedicalHistoryReportService;
     private final PdfMedicalHistoryService pdfMedicalHistoryService;
 
     @GetMapping("/{petId}/download")
-    public ResponseEntity<Resource> descargarHistorialPdf(
+    public void descargarHistorialMedicoPdf(
             @PathVariable Long petId,
-            @AuthenticationPrincipal String veterinarioNombre
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletResponse response
     ) {
-        var historial = historyReportService.obtenerHistorialMedico(petId);
-        System.out.println("🐾 Entrando al endpoint de descarga para petId=" + petId + " por " + veterinarioNombre);
+        try {
+            response.setContentType("application/pdf");
+            response.setHeader("Content-Disposition", "attachment; filename=historial_medico_mascota.pdf");
 
-        if (historial.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+            List<HistorialMedicoMascotaDTO> datos = vetMedicalHistoryReportService.obtenerHistorialMedico(petId);
+            String emitidoPor = userDetails.getUsername();
+
+            OutputStream out = response.getOutputStream();
+            pdfMedicalHistoryService.generarPdfHistorialMedico(out, datos, emitidoPor);
+            out.flush();
+        } catch (Exception e) {
+            throw new RuntimeException("Error al generar historial médico PDF", e);
         }
-
-        String nombreArchivo = "historial_mascota_" + petId + ".pdf";
-        String rutaPdf = pdfMedicalHistoryService.generarPdfHistorialMascota(nombreArchivo, historial);
-
-        if (rutaPdf == null) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-
-        File archivo = new File(rutaPdf);
-        if (!archivo.exists()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        Resource resource = new FileSystemResource(archivo);
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_PDF);
-        headers.setContentDisposition(ContentDisposition.attachment().filename(nombreArchivo).build());
-
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(resource);
     }
 }

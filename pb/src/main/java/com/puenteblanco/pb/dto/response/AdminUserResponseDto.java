@@ -11,7 +11,9 @@ public class AdminUserResponseDto {
     private Long id;
     private String nombreCompleto;
     private String correo;
-    private String rol;      // nombre del rol (ej: "CLIENT")
-    private Integer rolId;   // id del rol (ej: 1)
+    private String rol; // nombre del rol (ej: "CLIENT")
+    private Integer rolId; // id del rol (ej: 1)
     private Boolean estado;
+    private String motivoDesactivacion; // <-- Agregado
+
 }

@@ -49,11 +49,9 @@ public class AdminAppointmentServiceImpl implements AdminAppointmentService {
         Cita cita = citaRepository.findById(id).orElseThrow(() -> new RuntimeException("Cita no encontrada"));
 
         User doctor = userRepository.findById(dto.getVeterinarioId()).orElseThrow(() -> new RuntimeException("Doctor no encontrado"));
-        Pet pet = petRepository.findById(dto.getPetId()).orElseThrow(() -> new RuntimeException("Mascota no encontrada"));
         Servicio servicio = serviceRepository.findById(dto.getServicioId()).orElseThrow(() -> new RuntimeException("Servicio no encontrado"));
 
         cita.setUsuario(doctor);
-        cita.setPet(pet);
         cita.setServicio(servicio);
 
         citaRepository.save(cita);

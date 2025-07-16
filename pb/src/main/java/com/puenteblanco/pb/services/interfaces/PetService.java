@@ -1,7 +1,9 @@
 package com.puenteblanco.pb.services.interfaces;
-
+//tmb este modifique
 import com.puenteblanco.pb.entity.Pet;
+import com.puenteblanco.pb.entity.User;
 import com.puenteblanco.pb.repository.PetRepository;
+import com.puenteblanco.pb.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -11,8 +13,8 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class PetService {
-
     private final PetRepository petRepository;
+    private final UserRepository userRepository;
 
     public Pet registerPet(Pet pet) {
         // Generar un petId incremental único
@@ -55,5 +57,12 @@ public class PetService {
     // ✅ Listar mascotas activas por email del dueño
     public List<Pet> getActivePetsByOwnerEmail(String email) {
         return petRepository.findByOwnerEmailAndEstado(email, 1);
+    }
+
+    // ✅ Obtener nombre completo del cliente por su correo
+    public String getClientFullNameByEmail(String email) {
+        return userRepository.findClientByCorreo(email)
+                .map(user -> user.getNombres() + " " + user.getApellidoPaterno())
+                .orElse("Usuario");
     }
 }

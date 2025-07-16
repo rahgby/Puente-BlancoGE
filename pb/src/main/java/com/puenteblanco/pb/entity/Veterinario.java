@@ -30,5 +30,13 @@ public class Veterinario extends AudityEntity {
     @OneToOne
     @JoinColumn(name = "usuario_id", nullable = false)
     private User usuario;
+
+      // Método para obtener el nombre completo del veterinario desde la entidad User
+    public String getNombreCompleto() {
+        if (usuario != null) {
+            return usuario.getNombres() + " " + usuario.getApellidoPaterno() + " " + usuario.getApellidoMaterno();
+        }
+        return null;  // Retorna null si no se encuentra el usuario
+    }
 }
 

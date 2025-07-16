@@ -14,4 +14,5 @@ public class VetClinicalRecordResponseDto {
     private String diagnostico;
     private String tratamiento;
     private String observaciones;
+    private String estadoValidacion;
 }

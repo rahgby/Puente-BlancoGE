@@ -16,6 +16,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.crossstore.ChangeSetPersister.NotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
@@ -31,7 +32,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final TipoDocumentoRepository tipoDocumentoRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Override
+   @Override
 public List<AdminUserResponseDto> listarUsuariosPorRol(String rolNombre) {
     Long roleId = null;
     if (rolNombre != null && !rolNombre.equalsIgnoreCase("ALL")) {
@@ -46,56 +47,66 @@ public List<AdminUserResponseDto> listarUsuariosPorRol(String rolNombre) {
     return userRepository.findAllByOptionalRoleId(roleId).stream()
             .map(user -> new AdminUserResponseDto(
                 user.getId(),
-                user.getNombres(),
+                user.getNombres() + " " + user.getApellidoPaterno() + " " + user.getApellidoMaterno(),
                 user.getCorreo(),
-                user.getRole().getNombre(),
+                traducirRol(user.getRole().getNombre()), // 👈 Rol traducido al español
                 user.getRole().getId().intValue(),
-                user.getEstado()
+                user.getEstado(),
+                user.getMotivoDesactivacion()
             ))
             .collect(Collectors.toList());
 }
 
     @Override
-    public void toggleEstadoUsuario(Long id) {
+    @Transactional
+    public void toggleEstadoUsuario(Long id, String motivo) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-        user.setEstado(!Boolean.TRUE.equals(user.getEstado()));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+
+        boolean nuevoEstado = !user.getEstado();
+        user.setEstado(nuevoEstado);
+
+        if (!nuevoEstado && motivo != null) {
+            user.setMotivoDesactivacion(motivo);
+        } else {
+            user.setMotivoDesactivacion(null);
+        }
+
         userRepository.save(user);
     }
 
-
     @Override
-@Transactional
-public void crearUsuario(AdminCreateUserRequestDto dto) {
-    if (userRepository.existsByCorreo(dto.getCorreo())) {
-        throw new IllegalArgumentException("El correo ya está registrado");
+    @Transactional
+    public void crearUsuario(AdminCreateUserRequestDto dto) {
+        if (userRepository.existsByCorreo(dto.getCorreo())) {
+            throw new IllegalArgumentException("El correo ya está registrado");
+        }
+
+        Role rol = roleRepository.findById(dto.getRoleId())
+                .orElseThrow(() -> new IllegalArgumentException("Rol no válido"));
+
+        TipoDocumento tipoDoc = tipoDocumentoRepository.findById(dto.getTipoDocumentoId())
+                .orElseThrow(() -> new IllegalArgumentException("Tipo de documento inválido"));
+
+        User user = new User();
+        user.setNombres(dto.getNombres());
+        user.setApellidoPaterno(dto.getApellidoPaterno());
+        user.setApellidoMaterno(dto.getApellidoMaterno());
+        user.setNumeroIdentidad(dto.getNumeroIdentidad());
+        user.setTipoDocumento(tipoDoc);
+        user.setTelefono(dto.getTelefono());
+        user.setFechaNacimiento(dto.getFechaNacimiento());
+        user.setSexo(dto.getSexo());
+        user.setDireccion(dto.getDireccion());
+        user.setCorreo(dto.getCorreo());
+        user.setRole(rol);
+        user.setEstado(true);
+        user.setContrasena(passwordEncoder.encode(dto.getContrasena())); // Contraseña por defecto
+
+        userRepository.save(user);
     }
 
-    Role rol = roleRepository.findById(dto.getRoleId())
-            .orElseThrow(() -> new IllegalArgumentException("Rol no válido"));
-
-    TipoDocumento tipoDoc = tipoDocumentoRepository.findById(dto.getTipoDocumentoId())
-            .orElseThrow(() -> new IllegalArgumentException("Tipo de documento inválido"));
-
-    User user = new User();
-    user.setNombres(dto.getNombres());
-    user.setApellidoPaterno(dto.getApellidoPaterno());
-    user.setApellidoMaterno(dto.getApellidoMaterno());
-    user.setNumeroIdentidad(dto.getNumeroIdentidad());
-    user.setTipoDocumento(tipoDoc);
-    user.setTelefono(dto.getTelefono());
-    user.setFechaNacimiento(dto.getFechaNacimiento());
-    user.setSexo(dto.getSexo());
-    user.setDireccion(dto.getDireccion());
-    user.setCorreo(dto.getCorreo());
-    user.setRole(rol);
-    user.setEstado(true);
-    user.setContrasena(passwordEncoder.encode(dto.getContrasena())); // Contraseña por defecto
-
-    userRepository.save(user);
-}
-
-@Override
+    @Override
     public void actualizarUsuario(Long id, AdminUpdateUserRequestDto dto) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado"));
@@ -110,5 +121,26 @@ public void crearUsuario(AdminCreateUserRequestDto dto) {
 
         userRepository.save(user);
     }
+
+    @Override
+    public void desactivarUsuarioConMotivo(Long id, String motivo) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        user.setEstado(false);
+        user.setMotivoDesactivacion(motivo); // asegúrate que este campo exista en la entidad
+        userRepository.save(user);
+    }
+
+
+    private String traducirRol(String rolIngles) {
+    return switch (rolIngles.toUpperCase()) {
+        case "ADMIN" -> "Administrador";
+        case "CLIENT" -> "Cliente";
+        case "VETERINARIAN" -> "Veterinario";
+        case "INTERN" -> "Interno";
+        default -> rolIngles;
+    };
+}
 
 }

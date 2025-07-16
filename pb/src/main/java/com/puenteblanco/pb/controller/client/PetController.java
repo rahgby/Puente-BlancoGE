@@ -1,6 +1,6 @@
-// PetController.java – Controlador para gestionar mascotas de usuario
 package com.puenteblanco.pb.controller.client;
 
+//modifique petcontroller
 import com.puenteblanco.pb.entity.Pet;
 import com.puenteblanco.pb.security.AuthUtils;
 import com.puenteblanco.pb.services.interfaces.PetService;
@@ -24,6 +24,18 @@ public class PetController {
     @GetMapping
     public String showPetForm(Model model) {
         model.addAttribute("pet", new Pet());
+
+        String email = AuthUtils.getAuthenticatedEmail();
+
+        if (email != null) {
+            String fullName = petService.getClientFullNameByEmail(email);
+            model.addAttribute("dashboard", new Object() {
+                public String getFullName() {
+                    return fullName;
+                }
+            });
+        }
+
         return "add-pet";
     }
 
@@ -39,7 +51,8 @@ public class PetController {
         pet.setOwnerEmail(email);
         petService.registerPet(pet);
 
-        return "redirect:/dashboard";
+        return "redirect:/dashboard?success=true";
+
     }
 
     // ✅ Eliminar lógicamente la mascota por ID

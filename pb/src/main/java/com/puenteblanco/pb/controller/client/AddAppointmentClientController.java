@@ -16,7 +16,10 @@ public class AddAppointmentClientController {
 
     @PostMapping
     public ResponseEntity<String> bookAppointment(@RequestBody AppointmentRequestDto dto, Authentication authentication) {
+        // Llamar al servicio para reservar la cita y enviar el correo
         appointmentClientService.bookAppointment(authentication, dto);
-        return ResponseEntity.ok("Cita registrada exitosamente.");
+
+        // Confirmar que la cita fue registrada y el correo enviado
+        return ResponseEntity.ok("Cita registrada exitosamente. Un correo de recordatorio ha sido enviado.");
     }
 }

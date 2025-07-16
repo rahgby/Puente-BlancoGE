@@ -11,4 +11,6 @@ public interface VeterinarioRepository extends JpaRepository<Veterinario, Long> 
     // Devuelve veterinarios con estado activo (true)
     List<Veterinario> findByEstadoTrue();
     Optional<Veterinario> findByUsuarioCorreo(String correo);
+    Optional<Veterinario> findByUsuarioId(Long usuarioId);
+
 }
